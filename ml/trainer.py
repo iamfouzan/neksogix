@@ -289,9 +289,15 @@ class ModelTrainer:
                     logger.info(f"  {class_name}: Precision={metrics['precision']:.4f}, "
                               f"Recall={metrics['recall']:.4f}, F1={metrics['f1-score']:.4f}")
             
-            # Plot confusion matrix
-            logger.info("Generating confusion matrix plot...")
+            # Generate all visualizations
+            logger.info("Generating comprehensive visualizations...")
             self._plot_confusion_matrix(cm)
+            self._plot_accuracy_metrics(test_report)
+            self._plot_f1_scores(test_report)
+            self._plot_precision_recall_curves(test_report)
+            self._plot_class_distribution(y_test, y_pred)
+            self._plot_training_metrics_dashboard(test_report)
+            self._plot_training_time_analysis()
             
             logger.info("=" * 50)
             logger.info("MODEL EVALUATION COMPLETED")
@@ -436,7 +442,331 @@ class ModelTrainer:
             logger.error(f"Exception type: {type(e).__name__}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_accuracy_metrics(self, report: Dict[str, Any]) -> None:
+        """
+        Plot and save accuracy metrics.
+        
+        Args:
+            report (Dict[str, Any]): Classification report
+        """
+        try:
+            logger.info("Creating accuracy metrics visualization...")
+            plt.figure(figsize=(8, 6))
+            accuracy_data = {
+                'Overall': report['accuracy'],
+                'Macro Avg': report['macro avg']['accuracy'],
+                'Weighted Avg': report['weighted avg']['accuracy']
+            }
+            plt.bar(accuracy_data.keys(), accuracy_data.values())
+            plt.ylim(0, 1)
+            plt.title('Accuracy Metrics')
+            plt.ylabel('Accuracy')
+            plt.xlabel('Metric')
+            plt.tight_layout()
             
+            logger.info(f"Saving accuracy metrics to: {config.ACCURACY_METRICS_PATH}")
+            plt.savefig(config.ACCURACY_METRICS_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("Accuracy metrics visualization saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot accuracy metrics: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_f1_scores(self, report: Dict[str, Any]) -> None:
+        """
+        Plot and save F1 score metrics.
+        
+        Args:
+            report (Dict[str, Any]): Classification report
+        """
+        try:
+            logger.info("Creating F1 score metrics visualization...")
+            plt.figure(figsize=(8, 6))
+            f1_data = {
+                'Overall': report['weighted avg']['f1-score'],
+                'Macro Avg': report['macro avg']['f1-score'],
+                'Weighted Avg': report['weighted avg']['f1-score']
+            }
+            plt.bar(f1_data.keys(), f1_data.values())
+            plt.ylim(0, 1)
+            plt.title('F1 Score Metrics')
+            plt.ylabel('F1 Score')
+            plt.xlabel('Metric')
+            plt.tight_layout()
+            
+            logger.info(f"Saving F1 score metrics to: {config.F1_SCORES_PATH}")
+            plt.savefig(config.F1_SCORES_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("F1 score metrics visualization saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot F1 scores: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_precision_recall_curves(self, report: Dict[str, Any]) -> None:
+        """
+        Plot and save precision-recall metrics.
+        
+        Args:
+            report (Dict[str, Any]): Classification report
+        """
+        try:
+            logger.info("Creating precision-recall metrics visualization...")
+            plt.figure(figsize=(10, 6))
+            
+            # Extract precision and recall for each class
+            classes = []
+            precisions = []
+            recalls = []
+            
+            for class_name, metrics in report.items():
+                if isinstance(metrics, dict) and 'precision' in metrics:
+                    classes.append(class_name)
+                    precisions.append(metrics['precision'])
+                    recalls.append(metrics['recall'])
+            
+            # Create subplots
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+            
+            # Precision bar plot
+            ax1.bar(classes, precisions)
+            ax1.set_title('Precision by Class')
+            ax1.set_ylabel('Precision')
+            ax1.set_ylim(0, 1)
+            ax1.tick_params(axis='x', rotation=45)
+            
+            # Recall bar plot
+            ax2.bar(classes, recalls)
+            ax2.set_title('Recall by Class')
+            ax2.set_ylabel('Recall')
+            ax2.set_ylim(0, 1)
+            ax2.tick_params(axis='x', rotation=45)
+            
+            plt.tight_layout()
+            
+            logger.info(f"Saving precision-recall metrics to: {config.PRECISION_RECALL_CURVES_PATH}")
+            plt.savefig(config.PRECISION_RECALL_CURVES_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("Precision-recall metrics visualization saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot precision-recall metrics: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_class_distribution(self, y_test: np.ndarray, y_pred: np.ndarray) -> None:
+        """
+        Plot and save class distribution.
+        
+        Args:
+            y_test (np.ndarray): Test labels
+            y_pred (np.ndarray): Predicted labels
+        """
+        try:
+            logger.info("Creating class distribution visualization...")
+            plt.figure(figsize=(12, 6))
+            
+            # Create subplots for true vs predicted
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+            
+            # True labels distribution
+            unique_true, counts_true = np.unique(y_test, return_counts=True)
+            ax1.bar(unique_true, counts_true)
+            ax1.set_title('True Labels Distribution')
+            ax1.set_ylabel('Count')
+            ax1.set_xlabel('Class')
+            
+            # Predicted labels distribution
+            unique_pred, counts_pred = np.unique(y_pred, return_counts=True)
+            ax2.bar(unique_pred, counts_pred)
+            ax2.set_title('Predicted Labels Distribution')
+            ax2.set_ylabel('Count')
+            ax2.set_xlabel('Class')
+            
+            plt.tight_layout()
+            
+            logger.info(f"Saving class distribution to: {config.CLASS_DISTRIBUTION_PLOT_PATH}")
+            plt.savefig(config.CLASS_DISTRIBUTION_PLOT_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("Class distribution visualization saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot class distribution: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_training_metrics_dashboard(self, report: Dict[str, Any]) -> None:
+        """
+        Plot and save a comprehensive metrics dashboard.
+        
+        Args:
+            report (Dict[str, Any]): Classification report
+        """
+        try:
+            logger.info("Creating comprehensive metrics dashboard...")
+            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            
+            # 1. Overall Accuracy
+            axes[0, 0].bar(['Accuracy'], [report['accuracy']])
+            axes[0, 0].set_ylim(0, 1)
+            axes[0, 0].set_title('Overall Accuracy')
+            axes[0, 0].set_ylabel('Accuracy')
+            axes[0, 0].grid(True)
+
+            # 2. F1 Scores
+            f1_scores = []
+            class_names = []
+            for class_name, metrics in report.items():
+                if isinstance(metrics, dict) and 'f1-score' in metrics:
+                    f1_scores.append(metrics['f1-score'])
+                    class_names.append(class_name)
+            
+            axes[0, 1].bar(class_names, f1_scores)
+            axes[0, 1].set_ylim(0, 1)
+            axes[0, 1].set_title('F1 Scores by Class')
+            axes[0, 1].set_ylabel('F1 Score')
+            axes[0, 1].tick_params(axis='x', rotation=45)
+            axes[0, 1].grid(True)
+
+            # 3. Precision by Class
+            precisions = []
+            for class_name, metrics in report.items():
+                if isinstance(metrics, dict) and 'precision' in metrics:
+                    precisions.append(metrics['precision'])
+            
+            axes[0, 2].bar(class_names, precisions)
+            axes[0, 2].set_ylim(0, 1)
+            axes[0, 2].set_title('Precision by Class')
+            axes[0, 2].set_ylabel('Precision')
+            axes[0, 2].tick_params(axis='x', rotation=45)
+            axes[0, 2].grid(True)
+
+            # 4. Recall by Class
+            recalls = []
+            for class_name, metrics in report.items():
+                if isinstance(metrics, dict) and 'recall' in metrics:
+                    recalls.append(metrics['recall'])
+            
+            axes[1, 0].bar(class_names, recalls)
+            axes[1, 0].set_ylim(0, 1)
+            axes[1, 0].set_title('Recall by Class')
+            axes[1, 0].set_ylabel('Recall')
+            axes[1, 0].tick_params(axis='x', rotation=45)
+            axes[1, 0].grid(True)
+
+            # 5. Macro vs Weighted Averages
+            macro_avg = report['macro avg']
+            weighted_avg = report['weighted avg']
+            
+            metrics_names = ['Precision', 'Recall', 'F1-Score']
+            macro_values = [macro_avg['precision'], macro_avg['recall'], macro_avg['f1-score']]
+            weighted_values = [weighted_avg['precision'], weighted_avg['recall'], weighted_avg['f1-score']]
+            
+            x = np.arange(len(metrics_names))
+            width = 0.35
+            
+            axes[1, 1].bar(x - width/2, macro_values, width, label='Macro Avg')
+            axes[1, 1].bar(x + width/2, weighted_values, width, label='Weighted Avg')
+            axes[1, 1].set_title('Macro vs Weighted Averages')
+            axes[1, 1].set_ylabel('Score')
+            axes[1, 1].set_xticks(x)
+            axes[1, 1].set_xticklabels(metrics_names)
+            axes[1, 1].legend()
+            axes[1, 1].grid(True)
+
+            # 6. Support (number of samples per class)
+            supports = []
+            for class_name, metrics in report.items():
+                if isinstance(metrics, dict) and 'support' in metrics:
+                    supports.append(metrics['support'])
+            
+            axes[1, 2].bar(class_names, supports)
+            axes[1, 2].set_title('Support (Samples per Class)')
+            axes[1, 2].set_ylabel('Number of Samples')
+            axes[1, 2].tick_params(axis='x', rotation=45)
+            axes[1, 2].grid(True)
+
+            plt.tight_layout()
+            
+            logger.info(f"Saving comprehensive metrics dashboard to: {config.METRICS_DASHBOARD_PATH}")
+            plt.savefig(config.METRICS_DASHBOARD_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("Comprehensive metrics dashboard saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot comprehensive metrics dashboard: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _plot_training_time_analysis(self) -> None:
+        """
+        Plot and save training time analysis.
+        """
+        try:
+            logger.info("Creating training time analysis visualization...")
+            
+            if not hasattr(self, 'training_history') or not self.training_history:
+                logger.warning("No training history available for time analysis")
+                return
+            
+            plt.figure(figsize=(12, 8))
+            
+            # Create subplots for different time metrics
+            fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+            
+            # 1. Total training time
+            if 'total_training_time' in self.training_history:
+                total_time = self.training_history['total_training_time']
+                axes[0, 0].bar(['Total Training'], [total_time])
+                axes[0, 0].set_title('Total Training Time')
+                axes[0, 0].set_ylabel('Time (seconds)')
+                axes[0, 0].grid(True)
+            
+            # 2. Average time per fold
+            if 'avg_time_per_fold' in self.training_history:
+                avg_time = self.training_history['avg_time_per_fold']
+                axes[0, 1].bar(['Avg per Fold'], [avg_time])
+                axes[0, 1].set_title('Average Time per Fold')
+                axes[0, 1].set_ylabel('Time (seconds)')
+                axes[0, 1].grid(True)
+            
+            # 3. Cross-validation scores
+            if 'cv_scores' in self.training_history:
+                cv_scores = self.training_history['cv_scores']
+                axes[1, 0].plot(range(1, len(cv_scores) + 1), cv_scores, 'bo-')
+                axes[1, 0].set_title('Cross-Validation Scores')
+                axes[1, 0].set_xlabel('Fold')
+                axes[1, 0].set_ylabel('F1 Score')
+                axes[1, 0].grid(True)
+                axes[1, 0].set_ylim(0, 1)
+            
+            # 4. Training samples vs features
+            if 'n_samples' in self.training_history and 'n_features' in self.training_history:
+                n_samples = self.training_history['n_samples']
+                n_features = self.training_history['n_features']
+                
+                axes[1, 1].scatter(n_features, n_samples, s=100, alpha=0.7)
+                axes[1, 1].set_title('Dataset Size')
+                axes[1, 1].set_xlabel('Number of Features')
+                axes[1, 1].set_ylabel('Number of Samples')
+                axes[1, 1].grid(True)
+            
+            plt.tight_layout()
+            
+            logger.info(f"Saving training time analysis to: {config.TRAINING_TIME_ANALYSIS_PATH}")
+            plt.savefig(config.TRAINING_TIME_ANALYSIS_PATH, dpi=300, bbox_inches='tight')
+            plt.close()
+            logger.info("Training time analysis visualization saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to plot training time analysis: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
     def get_model_info(self) -> Dict[str, Any]:
         """
         Get information about the trained model.

@@ -59,6 +59,30 @@ class Config:
     SENTIMENT_MODEL_FILE: str = os.path.join(MODELS_DIR, 'sentiment_model.pkl')
     TFIDF_VECTORIZER_FILE: str = os.path.join(MODELS_DIR, 'tfidf_vectorizer.pkl')
     
+    # SVM Model Files (for cuML trainer)
+    MODEL_PATH: str = os.path.join(MODELS_DIR, 'svm_model.pkl')
+    SCALER_PATH: str = os.path.join(MODELS_DIR, 'scaler.pkl')
+    TRAINING_HISTORY_PATH: str = os.path.join(MODELS_DIR, 'training_history.json')
+    
+    # Visualization Files
+    CONFUSION_MATRIX_PATH: str = os.path.join(MODELS_DIR, 'confusion_matrix.png')
+    ACCURACY_PLOT_PATH: str = os.path.join(MODELS_DIR, 'accuracy_plot.png')
+    F1_SCORE_PLOT_PATH: str = os.path.join(MODELS_DIR, 'f1_score_plot.png')
+    PRECISION_RECALL_PLOT_PATH: str = os.path.join(MODELS_DIR, 'precision_recall_plot.png')
+    TRAINING_METRICS_PLOT_PATH: str = os.path.join(MODELS_DIR, 'training_metrics.png')
+    CLASS_DISTRIBUTION_PLOT_PATH: str = os.path.join(MODELS_DIR, 'class_distribution.png')
+    FEATURE_IMPORTANCE_PLOT_PATH: str = os.path.join(MODELS_DIR, 'feature_importance.png')
+    ROC_CURVE_PLOT_PATH: str = os.path.join(MODELS_DIR, 'roc_curve.png')
+    PR_CURVE_PLOT_PATH: str = os.path.join(MODELS_DIR, 'pr_curve.png')
+    TRAINING_TIME_PLOT_PATH: str = os.path.join(MODELS_DIR, 'training_time.png')
+    
+    # Additional visualization paths referenced in trainer
+    ACCURACY_METRICS_PATH: str = os.path.join(MODELS_DIR, 'accuracy_metrics.png')
+    F1_SCORES_PATH: str = os.path.join(MODELS_DIR, 'f1_scores.png')
+    PRECISION_RECALL_CURVES_PATH: str = os.path.join(MODELS_DIR, 'precision_recall_curves.png')
+    METRICS_DASHBOARD_PATH: str = os.path.join(MODELS_DIR, 'metrics_dashboard.png')
+    TRAINING_TIME_ANALYSIS_PATH: str = os.path.join(MODELS_DIR, 'training_time_analysis.png')
+    
     # Data File Names
     RAW_COMMENTS_FILE: str = os.path.join(DATA_DIR, 'raw_comments.csv')
     TRAINING_DATA_FILE: str = os.path.join(DATA_DIR, 'training_data.csv')
