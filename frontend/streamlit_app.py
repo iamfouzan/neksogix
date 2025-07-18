@@ -18,7 +18,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import config
-from scraper.imdb_spider import ImdbSpider
+from scraper.imdb_spider import IMDbSpider
 from nlp.preprocessor import TextPreprocessor
 from ml.predictor import SentimentPredictor
 from automation.discord_webhook import DiscordWebhook
@@ -27,6 +27,53 @@ from utils.helpers import setup_logging
 # Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+def _create_bert_summary(predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Create summary statistics for BERT-only predictions.
+    
+    Args:
+        predictions (List[Dict[str, Any]]): List of prediction results
+        
+    Returns:
+        Dict[str, Any]: Summary statistics
+    """
+    if not predictions:
+        return {}
+    
+    # Count sentiments
+    sentiment_counts = {}
+    total_confidence = 0
+    
+    for pred in predictions:
+        sentiment = pred.get('bert_sentiment', 'neutral')
+        sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
+        total_confidence += pred.get('bert_confidence', 0)
+    
+    # Calculate percentages
+    total_predictions = len(predictions)
+    sentiment_percentages = {
+        sentiment: (count / total_predictions) * 100 
+        for sentiment, count in sentiment_counts.items()
+    }
+    
+    # Find most common sentiment
+    most_common = max(sentiment_counts.items(), key=lambda x: x[1])[0] if sentiment_counts else 'neutral'
+    
+    # Average confidence
+    avg_confidence = total_confidence / total_predictions if total_predictions > 0 else 0
+    
+    return {
+        'total_predictions': total_predictions,
+        'sentiment_distribution': sentiment_counts,
+        'sentiment_percentages': sentiment_percentages,
+        'most_common_sentiment': most_common,
+        'average_bert_confidence': avg_confidence,
+        'average_svm_confidence': 0.0,  # Not available
+        'model_agreement_rate': 1.0,  # Always 100% since only one model
+        'bert_confidence_mean': avg_confidence,
+        'svm_confidence_mean': 0.0
+    }
 
 def main():
     """Main Streamlit application."""
@@ -67,12 +114,29 @@ def main():
     with st.sidebar:
         st.header("⚙️ Settings")
         
-        # Movie input
-        movie_name = st.text_input(
-            "Enter Movie Name:",
-            placeholder="e.g., The Shawshank Redemption",
-            help="Enter the exact movie name as it appears on IMDb"
+        # Input method selection
+        input_method = st.radio(
+            "Input Method:",
+            ["Movie Name", "IMDb ID"],
+            help="Choose how to specify the movie"
         )
+        
+        if input_method == "Movie Name":
+            # Movie input
+            movie_name = st.text_input(
+                "Enter Movie Name:",
+                placeholder="e.g., The Shawshank Redemption",
+                help="Enter the exact movie name as it appears on IMDb"
+            )
+            movie_id = None
+        else:
+            # IMDb ID input
+            movie_id = st.text_input(
+                "Enter IMDb ID:",
+                placeholder="e.g., tt0111161",
+                help="Enter the IMDb ID (found in the movie's URL)"
+            )
+            movie_name = None
         
         # Number of reviews
         num_reviews = st.slider(
@@ -108,7 +172,7 @@ def main():
         if model_loaded:
             st.success("✅ Models loaded successfully")
         else:
-            st.error("❌ Models not found. Please train models first.")
+            st.warning("⚠️ Models not found. Using BERT-only analysis.")
             
         st.markdown("---")
         st.markdown("### 📈 Recent Activity")
@@ -117,10 +181,9 @@ def main():
         st.info("No recent activity")
         
     # Main content area
-    if process_button and movie_name:
+    if process_button and (movie_name or movie_id):
         try:
             # Initialize components
-            spider = ImdbSpider()
             predictor = SentimentPredictor()
             discord_webhook = DiscordWebhook()
             
@@ -128,20 +191,115 @@ def main():
             progress_bar = st.progress(0)
             status_text = st.empty()
             
-            # Step 1: Search and scrape movie reviews
-            status_text.text("🔍 Searching for movie...")
-            progress_bar.progress(10)
-            
-            movie_data = spider.scrape_movie_reviews(movie_name, num_reviews)
-            
-            if not movie_data:
-                st.error(f"❌ No reviews found for '{movie_name}'. Please check the movie name.")
-                return
+            # Step 1: Get movie ID if needed
+            if movie_name and not movie_id:
+                status_text.text("🔍 Converting movie name to IMDb ID...")
+                progress_bar.progress(10)
                 
+                # Use the same mapping as simple_predict.py
+                movie_mapping = {
+                    "The Shawshank Redemption": "tt0111161",
+                    "The Godfather": "tt0068646",
+                    "Pulp Fiction": "tt0110912",
+                    "Fight Club": "tt0133093",
+                    "Forrest Gump": "tt0109830",
+                    "The Matrix": "tt0133093",
+                    "Goodfellas": "tt0099685",
+                    "The Silence of the Lambs": "tt0102926",
+                    "Interstellar": "tt0816692",
+                    "The Dark Knight": "tt0468569",
+                    "Inception": "tt1375666",
+                    "Joker": "tt7286456",
+                    "Parasite": "tt6751668",
+                    "Avengers: Endgame": "tt4154796",
+                    "Black Swan": "tt0947798",
+                    "Memento": "tt0209144",
+                    "No Country for Old Men": "tt0477348",
+                    "Reservoir Dogs": "tt0105236",
+                    "Se7en": "tt0114369",
+                    "V for Vendetta": "tt0434409",
+                    "The Sixth Sense": "tt0167404",
+                    "Good Will Hunting": "tt0119217",
+                    "Eternal Sunshine of the Spotless Mind": "tt0338013",
+                    "Titanic": "tt0120338",
+                    "Avatar": "tt0499549",
+                    "The Lion King": "tt0110357",
+                    "Frozen": "tt2294629",
+                    "Toy Story": "tt0114709",
+                    "Iron Man": "tt0371746",
+                    "The Avengers": "tt0848228",
+                    "Black Panther": "tt1825683",
+                    "Spider-Man": "tt0145487",
+                    "The Batman": "tt1877830",
+                    "Wonder Woman": "tt0451279",
+                    "Deadpool": "tt1431045",
+                    "Logan": "tt3315342",
+                    "X-Men": "tt0120903",
+                    "Star Wars: Episode IV - A New Hope": "tt0076759",
+                    "Star Wars: Episode V - The Empire Strikes Back": "tt0080684",
+                    "Star Wars: Episode VI - Return of the Jedi": "tt0086190",
+                    "The Lord of the Rings: The Fellowship of the Ring": "tt0120737",
+                    "The Lord of the Rings: The Two Towers": "tt0167261",
+                    "The Lord of the Rings: The Return of the King": "tt0167260",
+                    "The Hobbit: An Unexpected Journey": "tt0903624",
+                    "The Hobbit: The Desolation of Smaug": "tt1170358",
+                    "The Hobbit: The Battle of the Five Armies": "tt2310332",
+                }
+                
+                movie_id = movie_mapping.get(movie_name)
+                if not movie_id:
+                    st.error(f"❌ Could not find IMDb ID for '{movie_name}'. Please try using IMDb ID directly.")
+                    return
+                
+                display_name = movie_name
+            else:
+                display_name = movie_id
+            
+            # Step 2: Scrape movie reviews
             status_text.text("📝 Scraping reviews...")
             progress_bar.progress(30)
             
-            # Step 2: Preprocess and predict
+            spider = IMDbSpider(movie_id=movie_id)
+            spider.scrape_movie_reviews(movie_id, num_reviews)
+            
+            # Read scraped data from file (similar to simple_predict.py)
+            import pandas as pd
+            try:
+                df = pd.read_csv('data/raw_comments.csv')
+                # Filter for the current movie and get the latest reviews
+                movie_data = df[df['movie_id'] == movie_id].tail(num_reviews).to_dict('records')
+                
+                if not movie_data:
+                    st.error(f"❌ No reviews found for '{display_name}'. Please check the IMDb ID.")
+                    return
+                
+                # Filter out invalid data (JavaScript code, etc.)
+                valid_movie_data = []
+                for item in movie_data:
+                    text = str(item.get('text', ''))
+                    # Skip JavaScript code and other invalid content
+                    if (len(text) > 10 and 
+                        not text.startswith('window.') and 
+                        not text.startswith('ue.count') and
+                        not text.isdigit() and
+                        'CSMLibrarySize' not in text):
+                        valid_movie_data.append(item)
+                
+                if not valid_movie_data:
+                    st.error(f"❌ No valid reviews found for '{display_name}' after filtering.")
+                    return
+                
+                movie_data = valid_movie_data
+                logger.info(f"Successfully loaded {len(movie_data)} valid reviews from file")
+                
+            except FileNotFoundError:
+                st.error("❌ No reviews found - scraping may have failed")
+                return
+            except Exception as e:
+                st.error(f"❌ Error reading scraped data: {e}")
+                return
+                
+            # Step 3: Preprocess and predict
             status_text.text("🧠 Processing with BERT...")
             progress_bar.progress(50)
             
@@ -149,42 +307,76 @@ def main():
             texts = [item['text'] for item in movie_data]
             ratings = [item.get('rating', 0) for item in movie_data]
             
-            # Make predictions
-            predictions = predictor.predict_sentiment(texts, ratings)
+            # Check if models are loaded
+            model_loaded = predictor.load_models()
+            
+            if model_loaded:
+                # Use both BERT and SVM
+                status_text.text("🤖 Running ML predictions...")
+                progress_bar.progress(70)
+                predictions = predictor.predict_sentiment(texts, ratings)
+            else:
+                # Use BERT only
+                status_text.text("🧠 Running BERT analysis...")
+                progress_bar.progress(70)
+                
+                # Use BERT analyzer directly
+                from nlp.sentiment_analyzer import BertSentimentAnalyzer
+                bert_analyzer = BertSentimentAnalyzer()
+                bert_results = bert_analyzer.predict(texts)
+                
+                # Convert to prediction format
+                predictions = []
+                for i, (text, bert_result) in enumerate(zip(texts, bert_results)):
+                    prediction = {
+                        'text': text,
+                        'cleaned_text': text.lower(),
+                        'bert_sentiment': bert_result['label'],
+                        'bert_confidence': bert_result['confidence'],
+                        'svm_sentiment': 'neutral',  # Default since no SVM
+                        'svm_confidence': 0.0,
+                        'final_sentiment': bert_result['label'],
+                        'rating': ratings[i] if i < len(ratings) else 0.0
+                    }
+                    predictions.append(prediction)
             
             if not predictions:
-                st.error("❌ Failed to make predictions. Please check if models are loaded.")
+                st.error("❌ Failed to make predictions.")
                 return
                 
-            status_text.text("🤖 Running ML predictions...")
-            progress_bar.progress(70)
-            
-            # Step 3: Generate summary
+            # Step 4: Generate summary
             status_text.text("📊 Generating summary...")
             progress_bar.progress(90)
             
-            summary_stats = predictor.get_prediction_summary(predictions)
+            summary_stats = predictor.get_prediction_summary(predictions) if model_loaded else _create_bert_summary(predictions)
             
-            # Step 4: Send Discord notification
+            # Step 5: Send Discord notification
             if send_discord:
                 status_text.text("📨 Sending Discord notification...")
-                discord_webhook.send_sentiment_report(movie_name, predictions, summary_stats)
+                try:
+                    discord_webhook.send_sentiment_report(display_name, predictions, summary_stats)
+                except Exception as e:
+                    st.warning(f"⚠️ Discord notification failed: {e}")
                 
             progress_bar.progress(100)
             status_text.text("✅ Analysis complete!")
             
             # Display results
-            display_results(movie_name, predictions, summary_stats)
+            display_results(display_name, predictions, summary_stats)
             
         except Exception as e:
             st.error(f"❌ Error during analysis: {str(e)}")
             logger.error(f"Streamlit app error: {e}")
             
-            if send_discord:
-                discord_webhook.send_error_notification(str(e), movie_name)
+            # Only try Discord notification if webhook was initialized
+            if send_discord and 'discord_webhook' in locals():
+                try:
+                    discord_webhook.send_error_notification(str(e), display_name if 'display_name' in locals() else "Unknown")
+                except Exception as discord_error:
+                    st.warning(f"⚠️ Discord error notification also failed: {discord_error}")
                 
-    elif process_button and not movie_name:
-        st.warning("⚠️ Please enter a movie name.")
+    elif process_button and not movie_name and not movie_id:
+        st.warning("⚠️ Please enter a movie name or IMDb ID.")
         
     else:
         # Show welcome message
