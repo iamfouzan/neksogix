@@ -9,7 +9,7 @@ import argparse
 import logging
 import sys
 import os
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from config import config
@@ -119,6 +119,68 @@ class SentimentAnalysisPipeline:
             logger.error(f"Training mode failed: {e}")
             return {"error": str(e)}
             
+    def _get_movie_id(self, movie_name: str) -> Optional[str]:
+        """
+        Get IMDb ID for a movie name using predefined mapping.
+        
+        Args:
+            movie_name (str): Name of the movie to search for
+            
+        Returns:
+            Optional[str]: IMDb ID if found, None otherwise
+        """
+        # Predefined mapping of popular movies
+        movie_mapping = {
+            "The Shawshank Redemption": "tt0111161",
+            "The Godfather": "tt0068646",
+            "Pulp Fiction": "tt0110912",
+            "Fight Club": "tt0133093",
+            "Forrest Gump": "tt0109830",
+            "The Matrix": "tt0133093",
+            "Goodfellas": "tt0099685",
+            "The Silence of the Lambs": "tt0102926",
+            "Interstellar": "tt0816692",
+            "The Dark Knight": "tt0468569",
+            "Inception": "tt1375666",
+            "Joker": "tt7286456",
+            "Parasite": "tt6751668",
+            "Avengers: Endgame": "tt4154796",
+            "Black Swan": "tt0947798",
+            "Memento": "tt0209144",
+            "No Country for Old Men": "tt0477348",
+            "Reservoir Dogs": "tt0105236",
+            "Se7en": "tt0114369",
+            "V for Vendetta": "tt0434409",
+            "The Sixth Sense": "tt0167404",
+            "Good Will Hunting": "tt0119217",
+            "Eternal Sunshine of the Spotless Mind": "tt0338013",
+            "Titanic": "tt0120338",
+            "Avatar": "tt0499549",
+            "The Lion King": "tt0110357",
+            "Frozen": "tt2294629",
+            "Toy Story": "tt0114709",
+            "Iron Man": "tt0371746",
+            "The Avengers": "tt0848228",
+            "Black Panther": "tt1825683",
+            "Spider-Man": "tt0145487",
+            "The Batman": "tt1877830",
+            "Wonder Woman": "tt0451279",
+            "Deadpool": "tt1431045",
+            "Logan": "tt3315342",
+            "X-Men": "tt0120903",
+            "Star Wars: Episode IV - A New Hope": "tt0076759",
+            "Star Wars: Episode V - The Empire Strikes Back": "tt0080684",
+            "Star Wars: Episode VI - Return of the Jedi": "tt0086190",
+            "The Lord of the Rings: The Fellowship of the Ring": "tt0120737",
+            "The Lord of the Rings: The Two Towers": "tt0167261",
+            "The Lord of the Rings: The Return of the King": "tt0167260",
+            "The Hobbit: An Unexpected Journey": "tt0903624",
+            "The Hobbit: The Desolation of Smaug": "tt1170358",
+            "The Hobbit: The Battle of the Five Armies": "tt2310332",
+        }
+        
+        return movie_mapping.get(movie_name)
+
     def predict_mode(self, movie_name: str, num_reviews: int = 50) -> Dict[str, Any]:
         """
         Execute prediction mode for a single movie.
@@ -137,17 +199,25 @@ class SentimentAnalysisPipeline:
             if not self.predictor.load_models():
                 logger.error("Failed to load models")
                 return {"error": "Models not loaded"}
+            
+            # Step 2: Get movie ID
+            movie_id = self._get_movie_id(movie_name)
+            if not movie_id:
+                logger.error(f"Could not find IMDb ID for movie: {movie_name}")
+                return {"error": f"Could not find IMDb ID for movie: {movie_name}. Please check the movie name and try again."}
+            
+            logger.info(f"Found IMDb ID: {movie_id} for movie: {movie_name}")
                 
-            # Step 2: Scrape movie reviews
+            # Step 3: Scrape movie reviews using the movie ID
             logger.info("Scraping movie reviews...")
-            spider = self._create_spider(movie_name=movie_name)
-            movie_data = spider.scrape_movie_reviews(movie_name, num_reviews)
+            spider = IMDbSpider(movie_id=movie_id)
+            movie_data = spider.scrape_movie_reviews(movie_id, num_reviews)
             
             if not movie_data:
                 logger.error(f"No reviews found for {movie_name}")
                 return {"error": f"No reviews found for {movie_name}"}
                 
-            # Step 3: Make predictions
+            # Step 4: Make predictions
             logger.info("Making predictions...")
             texts = [item['text'] for item in movie_data]
             ratings = [item.get('rating', 0) for item in movie_data]
@@ -158,22 +228,23 @@ class SentimentAnalysisPipeline:
                 logger.error("Failed to make predictions")
                 return {"error": "Failed to make predictions"}
                 
-            # Step 4: Generate summary
+            # Step 5: Generate summary
             summary_stats = self.predictor.get_prediction_summary(predictions)
             
-            # Step 5: Save to database
+            # Step 6: Save to database
             self._save_to_database(movie_name, movie_data, predictions)
             
-            # Step 6: Send Discord notification
+            # Step 7: Send Discord notification
             self.discord_webhook.send_sentiment_report(movie_name, predictions, summary_stats)
             
-            # Step 7: Save results to CSV
+            # Step 8: Save results to CSV
             self._save_results_to_csv(movie_name, predictions)
             
             logger.info("Prediction mode completed successfully")
             
             return {
                 "movie_name": movie_name,
+                "movie_id": movie_id,
                 "predictions": predictions,
                 "summary": summary_stats,
                 "total_reviews": len(predictions)

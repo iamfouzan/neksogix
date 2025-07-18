@@ -97,7 +97,7 @@ This will:
 
 ```bash
 # Analyze a single movie
-python main.py --mode predict --movie "The Shawshank Redemption" --reviews 100
+python main.py --mode predict --movie "The Shawshank Redemption" --reviews 10
 ```
 
 ### 6. Web Interface
