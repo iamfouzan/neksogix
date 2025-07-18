@@ -1,0 +1,358 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor AI Rules for Sentiment Analysis Project
+
+## CRITICAL INSTRUCTIONS
+**IMPORTANT**: You MUST follow these rules exactly to create a professional-grade sentiment analysis system. Do not deviate from these specifications unless explicitly instructed.
+
+## CODE QUALITY RULES
+
+### 1. **Code Structure & Organization**
+```
+RULE: Every file MUST have proper imports, docstrings, and type hints
+RULE: Use snake_case for variables/functions, PascalCase for classes
+RULE: Maximum 80 characters per line
+RULE: Add comprehensive docstrings using Google style format
+RULE: Include type hints for all function parameters and return values
+RULE: Use proper error handling with try-except blocks
+RULE: Log all important operations using Python logging module
+```
+
+### 2. **Import Organization**
+```
+RULE: Group imports in this order:
+1. Standard library imports
+2. Third-party imports  
+3. Local application imports
+4. Separate each group with blank line
+
+Example:
+import os
+import sys
+from typing import List, Dict, Optional
+
+import pandas as pd
+import numpy as np
+from sqlalchemy import create_engine
+
+from database.models import Movie, Comment
+from utils.helpers import setup_logging
+```
+
+### 3. **Error Handling Standards**
+```
+RULE: Every function that can fail MUST have proper error handling
+RULE: Use specific exception types, not generic Exception
+RULE: Log errors with appropriate log levels (ERROR, WARNING, INFO)
+RULE: Implement graceful degradation for non-critical failures
+RULE: Return meaningful error messages to users
+```
+
+## DATABASE IMPLEMENTATION RULES
+
+### 4. **PostgreSQL Setup**
+```
+RULE: Use SQLAlchemy ORM for all database operations
+RULE: Create connection pooling for performance
+RULE: Implement proper transaction handling
+RULE: Use environment variables for database credentials
+RULE: Include database migration scripts
+RULE: Add proper indexing for performance
+
+Required Tables Structure:
+- movies: id (PK), name, imdb_id, processed_at
+- comments: id (PK), movie_id (FK), text, cleaned_text, username, rating, date
+- predictions: id (PK), comment_id (FK), bert_sentiment, bert_confidence, svm_sentiment, svm_confidence, final_sentiment, created_at
+```
+
+### 5. **Database Models Requirements**
+```python
+RULE: Each model MUST include:
+- Primary key field
+- Created/updated timestamps
+- String representation (__str__ method)
+- Proper foreign key relationships
+- Validation methods
+- CRUD operations as class methods
+```
+
+## SCRAPING IMPLEMENTATION RULES
+
+### 6. **Scrapy Spider Requirements**
+```
+RULE: Target URL pattern: https://www.imdb.com/title/{movie_id}/reviews
+RULE: Extract minimum 100+ comments per movie
+RULE: Handle pagination using "Load More" button logic
+RULE: Implement rate limiting (2-3 seconds between requests)
+RULE: Use rotating user agents to avoid blocking
+RULE: Add retry logic for failed requests (max 3 retries)
+RULE: Parse and extract: review_text, rating, date, username
+RULE: Save raw data to CSV before processing
+```
+### 7. **Scraper Error Handling**
+```python
+RULE: Handle these specific scenarios:
+- Network timeouts
+- HTTP 403/429 errors (rate limiting)
+- Changed HTML structure
+- Missing review elements
+- Invalid movie IDs
+- Empty response handling
+```
+
+## NLP IMPLEMENTATION RULES
+
+### 8. **Text Preprocessing Standards**
+```python
+RULE: Preprocessing pipeline MUST include:
+1. HTML tag removal
+2. Special character cleaning (keep only alphanumeric + spaces)
+3. Convert to lowercase
+4. Remove extra whitespaces
+5. Remove stop words (using NLTK)
+6. Handle encoding issues (UTF-8)
+7. Minimum text length validation (>10 characters)
+```
+
+### 9. **BERT Implementation Requirements**
+```
+RULE: Use model: "nlptown/bert-base-multilingual-uncased-sentiment"
+RULE: Batch processing for efficiency (batch_size=16)
+RULE: Extract both label and confidence score
+RULE: Handle CUDA/CPU device selection automatically
+RULE: Implement memory management for large datasets
+RULE: Add timeout handling for model inference
+```
+
+## MACHINE LEARNING RULES
+
+### 10. **Training Data Preparation**
+```python
+RULE: Training dataset MUST include:
+- Minimum 1000+ comments from diverse movies
+- Balanced sentiment distribution (33% each: positive, negative, neutral)
+- Multiple movie genres (action, drama, comedy, horror, etc.)
+- Use BERT predictions as ground truth labels
+- Only use high-confidence BERT predictions (>0.8 confidence)
+```
+
+### 11. **Custom SVM Model Requirements**
+```python
+RULE: Feature engineering MUST include:
+- TF-IDF vectorization (max_features=5000, stop_words='english')
+- Additional features: text_length, rating, bert_confidence
+- Feature scaling/normalization
+- Train/test split: 80/20 with stratification
+- Use SVC with rbf kernel and probability=True
+```
+
+### 12. **Model Evaluation Standards**
+```python
+RULE: Calculate and report:
+- Accuracy, Precision, Recall, F1-score
+- Classification report with per-class metrics
+- Confusion matrix visualization
+- Cross-validation scores (5-fold)
+- Performance comparison with BERT baseline
+- Save evaluation metrics to JSON file
+```
+
+## FRONTEND IMPLEMENTATION RULES
+
+### 13. **Streamlit Interface Requirements**
+```python
+RULE: UI MUST include:
+- Movie name input field with validation
+- Real-time progress bar with status updates
+- Results display with sentiment distribution chart
+- Top 5 positive/negative reviews showcase
+- Download button for results CSV
+- Error message display with user-friendly text
+- Loading spinners during processing
+```
+
+### 14. **User Experience Standards**
+```python
+RULE: Progress updates MUST show:
+- "Searching movie..." (10%)
+- "Scraping reviews..." (30%)
+- "Processing with BERT..." (60%)
+- "ML prediction..." (80%)
+- "Saving results..." (90%)
+- "Complete!" (100%)
+```
+
+## AUTOMATION RULES
+
+### 15. **Discord Webhook Implementation**
+```python
+RULE: Message format MUST include:
+- Movie name and processing timestamp
+- Total comments processed
+- Sentiment distribution (counts and percentages)
+- Top 5 positive comments with scores
+- Top 5 negative comments with scores
+- Summary statistics
+- Error handling for webhook failures
+```
+
+## CONFIGURATION RULES
+
+### 16. **Environment Variables**
+```python
+RULE: Create .env file with:
+DATABASE_URL=postgresql://user:password@localhost/sentiment_db
+DISCORD_WEBHOOK_URL=your_webhook_url
+HUGGINGFACE_MODEL_NAME=nlptown/bert-base-multilingual-uncased-sentiment
+LOG_LEVEL=INFO
+SCRAPING_DELAY=2
+```
+
+### 17. **Config.py Requirements**
+```python
+RULE: Configuration MUST include:
+- Database connection settings
+- Model parameters
+- Scraping settings (delays, user agents)
+- File paths for models and data
+- Logging configuration
+- Environment variable loading with defaults
+```
+
+## TESTING RULES
+
+### 18. **Unit Testing Requirements**
+```python
+RULE: Create tests for:
+- Database CRUD operations
+- Scraping functionality with mock data
+- NLP preprocessing functions
+- Model training and prediction
+- Discord webhook integration
+- Use pytest framework
+- Minimum 80% code coverage
+```
+
+## DOCUMENTATION RULES
+
+### 19. **README.md Structure**
+```markdown
+RULE: Include these sections:
+1. Project Overview
+2. Features
+3. Installation Instructions
+4. Environment Setup
+5. Usage Examples
+6. API Documentation
+7. Model Performance
+8. Troubleshooting
+9. Contributing Guidelines
+10. License
+```
+
+### 20. **Code Documentation Standards**
+```python
+RULE: Every function MUST have:
+- Purpose description
+- Parameter types and descriptions
+- Return value description
+- Usage examples
+- Potential exceptions raised
+
+Example:
+def preprocess_text(text: str) -> str:
+    """
+    Clean and preprocess text for sentiment analysis.
+    
+    Args:
+        text (str): Raw text to be processed
+        
+    Returns:
+        str: Cleaned and preprocessed text
+        
+    Raises:
+        ValueError: If text is empty or None
+        
+    Example:
+        >>> preprocess_text("This is a <b>great</b> movie!")
+        'this is a great movie'
+    """
+```
+
+## PERFORMANCE RULES
+
+### 21. **Optimization Requirements**
+```python
+RULE: Implement these optimizations:
+- Batch processing for BERT (batch_size=16)
+- Database connection pooling
+- Caching for repeated movie searches
+- Async operations where possible
+- Memory management for large datasets
+- Progress tracking for long operations
+```
+
+## DEPLOYMENT RULES
+
+### 22. **Production Readiness**
+```python
+RULE: Include these production features:
+- Comprehensive logging with log rotation
+- Health check endpoints
+- Graceful shutdown handling
+- Resource monitoring
+- Configuration validation
+- Dependency management
+- Docker containerization (optional)
+```
+
+## FILE CREATION ORDER
+
+### 23. **Implementation Sequence**
+```
+RULE: Create files in this exact order:
+1. config.py and .env.example
+2. database/models.py and connection.py
+3. utils/helpers.py (logging setup)
+4. scraper/imdb_spider.py
+5. nlp/preprocessor.py and sentiment_analyzer.py
+6. ml/data_preparation.py
+7. ml/trainer.py and predictor.py
+8. automation/discord_webhook.py
+9. frontend/streamlit_app.py
+10. main.py
+11. tests/ directory
+12. requirements.txt
+13. README.md
+```
+
+## FINAL VALIDATION RULES
+
+### 24. **Quality Checklist**
+```
+RULE: Before completion, verify:
+✓ All files have proper imports and structure
+✓ Database models work with PostgreSQL
+✓ Scraper successfully extracts IMDb reviews
+✓ BERT model loads and processes text
+✓ Custom SVM model trains and predicts
+✓ Discord webhook sends formatted messages
+✓ Streamlit interface is user-friendly
+✓ All error scenarios are handled
+✓ Code follows PEP 8 standards
+✓ Documentation is comprehensive
+✓ Tests pass successfully
+```
+
+## EXECUTION COMMAND
+```bash
+RULE: Final command to run the application:
+python main.py --mode train  # For initial model training
+python main.py --mode predict  # For production use
+streamlit run frontend/streamlit_app.py  # For web interface
+```
+
+**CRITICAL**: Follow these rules exactly. Do not skip any requirements. Each rule is essential for creating a professional-grade sentiment analysis system that meets industry standards.

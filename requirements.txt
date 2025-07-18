@@ -1,0 +1,43 @@
+# Core ML and Data Science
+scikit-learn
+pandas
+numpy
+joblib
+
+# Deep Learning and NLP
+torch
+transformers
+tokenizers
+
+# Web Scraping
+scrapy
+beautifulsoup4
+requests
+selenium
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Web Framework
+streamlit
+
+# Visualization
+plotly
+matplotlib
+seaborn
+
+# Utilities
+python-dotenv
+discord-webhook
+lxml
+
+# Development and Testing
+pytest
+pytest-cov
+black
+flake8
+
+# Additional dependencies
+nltk
+scipy
