@@ -13,7 +13,7 @@ import joblib
 import json
 from datetime import datetime, timedelta
 import time
-from thundersvm import SVC
+from cuml.svm import SVC
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix
@@ -112,21 +112,8 @@ class ModelTrainer:
             logger.info(f"Total folds to process: {total_folds}")
             
             # Initialize SVM with probability estimation
-            logger.info("Initializing SVM classifier with probability estimation...")
-            # Try GPU first, fallback to CPU if not available
-            try:
-                logger.info("Trying ThunderSVM SVC on GPU...")
-                svm = SVC(probability=True, random_state=42, device='gpu')
-                # Test fit to check for GPU availability
-                _ = svm.fit(features[:2], labels[:2])
-                logger.info("ThunderSVM SVC running on GPU.")
-            except Exception as gpu_exc:
-                logger.warning(f"GPU not available or failed: {gpu_exc}")
-                logger.info("Falling back to ThunderSVM SVC on CPU...")
-                svm = SVC(probability=True, random_state=42, device='cpu')
-                # Test fit to ensure CPU works
-                _ = svm.fit(features[:2], labels[:2])
-                logger.info("ThunderSVM SVC running on CPU.")
+            logger.info("Initializing cuML SVM classifier (GPU, no probability outputs)...")
+            svm = SVC(random_state=42)
             
             # Perform grid search with cross-validation
             logger.info("Starting GridSearchCV with 5-fold cross-validation...")
@@ -262,9 +249,10 @@ class ModelTrainer:
             # Make predictions
             logger.info("Making predictions on test set...")
             y_pred = self.model.predict(X_test_scaled)
-            y_pred_proba = self.model.predict_proba(X_test_scaled)
+            # cuML SVC does not support predict_proba
+            # y_pred_proba = self.model.predict_proba(X_test_scaled)
             logger.info(f"Predictions shape: {y_pred.shape}")
-            logger.info(f"Prediction probabilities shape: {y_pred_proba.shape}")
+            # logger.info(f"Prediction probabilities shape: {y_pred_proba.shape}")
             logger.info(f"Predicted labels distribution: {np.unique(y_pred, return_counts=True)}")
             
             # Calculate metrics
@@ -284,7 +272,7 @@ class ModelTrainer:
                 'test_report': test_report,
                 'confusion_matrix': cm.tolist(),
                 'predictions': y_pred.tolist(),
-                'probabilities': y_pred_proba.tolist(),
+                # 'probabilities': y_pred_proba.tolist(),  # Not available in cuML
                 'test_accuracy': test_report['accuracy'],
                 'test_f1_weighted': test_report['weighted avg']['f1-score']
             }
