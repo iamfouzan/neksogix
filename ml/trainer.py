@@ -13,7 +13,7 @@ import joblib
 import json
 from datetime import datetime, timedelta
 import time
-from sklearn.svm import SVC
+from thundersvm import SVC
 from sklearn.model_selection import GridSearchCV, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix
@@ -113,7 +113,20 @@ class ModelTrainer:
             
             # Initialize SVM with probability estimation
             logger.info("Initializing SVM classifier with probability estimation...")
-            svm = SVC(probability=True, random_state=42)
+            # Try GPU first, fallback to CPU if not available
+            try:
+                logger.info("Trying ThunderSVM SVC on GPU...")
+                svm = SVC(probability=True, random_state=42, device='gpu')
+                # Test fit to check for GPU availability
+                _ = svm.fit(features[:2], labels[:2])
+                logger.info("ThunderSVM SVC running on GPU.")
+            except Exception as gpu_exc:
+                logger.warning(f"GPU not available or failed: {gpu_exc}")
+                logger.info("Falling back to ThunderSVM SVC on CPU...")
+                svm = SVC(probability=True, random_state=42, device='cpu')
+                # Test fit to ensure CPU works
+                _ = svm.fit(features[:2], labels[:2])
+                logger.info("ThunderSVM SVC running on CPU.")
             
             # Perform grid search with cross-validation
             logger.info("Starting GridSearchCV with 5-fold cross-validation...")
